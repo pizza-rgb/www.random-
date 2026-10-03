@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Random Match 🎲</title>
+<style>
+  *{box-sizing:border-box}
+  body{
+    margin:0;font-family:system-ui,-apple-system,"Noto Sans Thai",sans-serif;
+    background:linear-gradient(135deg,#17112b,#30205a 55%,#5b2c83);
+    color:#fff;min-height:100vh;padding:22px 14px;
+  }
+  .wrap{max-width:850px;margin:auto}
+  .hero{text-align:center;margin:8px 0 22px}
+  .hero h1{margin:0;font-size:clamp(30px,7vw,48px)}
+  .hero p{margin:6px 0;color:#d8d1e8}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .card{
+    background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.14);
+    border-radius:20px;padding:18px;backdrop-filter:blur(12px)
+  }
+  .card h2{font-size:18px;margin:0 0 10px}
+  textarea{
+    width:100%;height:230px;resize:vertical;border:0;outline:0;border-radius:14px;
+    padding:14px;background:#fff;color:#222;font-size:16px;line-height:1.65
+  }
+  .hint{font-size:12px;color:#cfc7df;margin-top:8px}
+  .controls{
+    margin-top:14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center
+  }
+  label{
+    background:rgba(255,255,255,.08);padding:10px 13px;border-radius:12px;
+    font-size:14px;display:flex;gap:8px;align-items:center
+  }
+  input[type=checkbox]{width:18px;height:18px}
+  button{
+    width:100%;margin-top:16px;border:0;border-radius:16px;padding:15px;
+    font-size:19px;font-weight:800;cursor:pointer;color:#fff;
+    background:linear-gradient(90deg,#9d5cff,#d653ff);
+    box-shadow:0 8px 25px rgba(170,80,255,.28)
+  }
+  button:active{transform:scale(.98)}
+  .secondary{background:rgba(255,255,255,.1);box-shadow:none;font-size:14px}
+  .result{margin-top:16px}
+  .result-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .result-head h2{margin:0}
+  .results{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:12px}
+  .person{
+    background:#fff;color:#241a35;border-radius:16px;padding:14px;
+    animation:pop .35s ease both
+  }
+  .person .name{font-weight:800;font-size:17px}
+  .person .arrow{color:#8a789d;margin:3px 0}
+  .person .choice{font-size:18px;font-weight:800}
+  .empty{color:#cfc7df;text-align:center;padding:20px}
+  .status{text-align:center;margin-top:12px;color:#ded5ec;font-size:13px;min-height:20px}
+  @keyframes pop{from{opacity:0;transform:translateY(12px) scale(.96)}to{opacity:1;transform:none}}
+  @media(max-width:650px){.grid{grid-template-columns:1fr}.card textarea{height:190px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <h1>🎲 Random Choice</h1>
+    <p>สุ่มตัวเลือกให้ทุกคนพร้อมกัน</p>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>👥 รายชื่อคน</h2>
+      <textarea id="people" placeholder="ใส่ 1 ชื่อต่อ 1 บรรทัด&#10;&#10;ปอน&#10;นนท์&#10;เจ&#10;บีม"></textarea>
+      <div class="hint">ใส่ชื่อคนละบรรทัด หรือคั่นด้วยเครื่องหมาย , ก็ได้</div>
+    </div>
+
+    <div class="card">
+      <h2>🎁 ตัวเลือกที่จะสุ่ม</h2>
+      <textarea id="choices" placeholder="ใส่ 1 ตัวเลือกต่อ 1 บรรทัด&#10;&#10;🍦 ไอติม&#10;🍬 ลูกอม&#10;🍳 ไข่เจียว&#10;🌶️ หมาล่า"></textarea>
+      <div class="hint">ตัวเลือกสามารถซ้ำกันในรายการได้</div>
+    </div>
+  </div>
+
+  <div class="card controls">
+    <label><input type="checkbox" id="unique"> ห้ามตัวเลือกซ้ำกัน</label>
+    <label><input type="checkbox" id="animate" checked> แสดงเอฟเฟกต์สุ่ม</label>
+  </div>
+
+  <button id="draw">🎲 สุ่มให้ทุกคน</button>
+
+  <div class="status" id="status"></div>
+
+  <div class="card result">
+    <div class="result-head">
+      <h2>📋 ผลการสุ่ม</h2>
+      <button class="secondary" id="clear" style="width:auto;margin:0;padding:9px 13px">ล้างผล</button>
+    </div>
+    <div id="results" class="results">
+      <div class="empty">ยังไม่มีผลการสุ่ม</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const peopleEl=document.getElementById('people');
+const choicesEl=document.getElementById('choices');
+const uniqueEl=document.getElementById('unique');
+const animateEl=document.getElementById('animate');
+const resultsEl=document.getElementById('results');
+const statusEl=document.getElementById('status');
+
+function parseList(text){
+  return text.split(/[\n,]+/).map(x=>x.trim()).filter(Boolean);
+}
+function shuffle(arr){
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){
+    const j=crypto.getRandomValues(new Uint32Array(1))[0]%(i+1);
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+function randomChoice(arr){
+  return arr[crypto.getRandomValues(new Uint32Array(1))[0]%arr.length];
+}
+function render(items){
+  resultsEl.innerHTML='';
+  items.forEach((x,i)=>{
+    const div=document.createElement('div');
+    div.className='person';
+    div.style.animationDelay=(i*45)+'ms';
+    div.innerHTML=`<div class="name">${escapeHtml(x.name)}</div>
+      <div class="arrow">↓ ได้รับ</div>
+      <div class="choice">${escapeHtml(x.choice)}</div>`;
+    resultsEl.appendChild(div);
+  });
+}
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+}
+
+document.getElementById('draw').addEventListener('click',()=>{
+  const people=parseList(peopleEl.value);
+  const choices=parseList(choicesEl.value);
+  if(!people.length){statusEl.textContent='⚠️ กรุณาใส่รายชื่อก่อน';return;}
+  if(!choices.length){statusEl.textContent='⚠️ กรุณาใส่ตัวเลือกก่อน';return;}
+  if(uniqueEl.checked && choices.length<people.length){
+    statusEl.textContent=`⚠️ โหมดห้ามซ้ำต้องมีตัวเลือกอย่างน้อย ${people.length} ตัวเลือก`;
+    return;
+  }
+
+  let finalItems=[];
+  if(uniqueEl.checked){
+    const pool=shuffle(choices);
+    finalItems=people.map((name,i)=>({name,choice:pool[i]}));
+  }else{
+    finalItems=people.map(name=>({name,choice:randomChoice(choices)}));
+  }
+
+  statusEl.textContent='';
+  if(!animateEl.checked){render(finalItems);return;}
+
+  const start=performance.now(), duration=850;
+  const tick=now=>{
+    const elapsed=now-start;
+    if(elapsed<duration){
+      render(people.map(name=>({name,choice:randomChoice(choices)})));
+      requestAnimationFrame(tick);
+    }else{
+      render(finalItems);
+      statusEl.textContent=`สุ่มเสร็จแล้ว • ${people.length} คน`;
+    }
+  };
+  requestAnimationFrame(tick);
+});
+
+document.getElementById('clear').addEventListener('click',()=>{
+  resultsEl.innerHTML='<div class="empty">ยังไม่มีผลการสุ่ม</div>';
+  statusEl.textContent='';
+});
+</script>
+</body>
+</html>
